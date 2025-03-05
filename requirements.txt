@@ -1,0 +1,13 @@
+pygame
+SpeechRecognition
+PyAudio
+pymysql
+google-generativeai
+jinja2
+gtts
+# Replace playsound with a more compatible alternative
+pygame  # We already use pygame for audio, so we don't need playsound
+pydub
+pyttsx3
+google-cloud-texttospeech
+pillow
