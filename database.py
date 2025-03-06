@@ -1,21 +1,18 @@
-import datetime
-import decimal
-import json
-import os
-import time
-
-import google.generativeai as genai
-# Replace playsound with pygame (which we already use)
-# from playsound import playsound
-import pygame
-import pymysql
-import pyttsx3
 import speech_recognition as sr
-from google.cloud import texttospeech
-from gtts import gTTS
+import google.generativeai as genai
+import os
+import json
+import pymysql
+import time
+import decimal
+import datetime
 from jinja2 import Template
-from pydub import AudioSegment
-
+from gtts import gTTS
+from playsound import playsound
+import pygame
+from pydub import AudioSegment 
+import pyttsx3
+from google.cloud import texttospeech
 
 def generate_mp3_gtts(text, lang, output_filepath):
     """Generates an MP3 file using gTTS and saves it to the specified location."""
