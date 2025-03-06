@@ -1,0 +1,26 @@
+__pycache__
+.DS_Store    # Ignore the .DS_Store file
+*.pyc        # Ignore the .pyc files
+*.pyo        # Ignore the .pyo files
+*.pyd        # Ignore the .pyd files
+*.db         # Ignore the .db files
+*.sqlite3    # Ignore the .sqlite3 files
+*.log        # Ignore the .log files
+*.bak        # Ignore the .bak files
+*.swp        # Ignore the .swp files
+*.swo        # Ignore the .swo files
+*.swn        # Ignore the .swn files
+*.swm        # Ignore the .swm files
+*.swl        # Ignore the .swl files
+*.swk        # Ignore the .swk files
+*.swj        # Ignore the .swj files
+*.swg        # Ignore the .swg files
+*.swf        # Ignore the .swf files
+*.swc        # Ignore the .swc files
+*.swb        # Ignore the .swb files
+*.swa        # Ignore the .swa files
+*.sw9        # Ignore the .sw9 files
+*.sw8        # Ignore the .sw8 files
+*.sw7        # Ignore the .sw7 files
+*.sw6        # Ignore the .sw6 files
+*.sw5        # Ignore the .sw5 files
