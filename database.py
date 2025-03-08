@@ -424,14 +424,57 @@ def Special_Service_Enquiry(Source_City="Vijayawada", Destination_City=None, Fes
     
 
 # --- LLM Interaction (using Gemini - Direct SQL) ---
+def play_greeting():
+    """Play the Telugu greeting message"""
+    try:
+        # Ensure the Audio directory exists and is writable
+        os.makedirs(r"C:\Audio", exist_ok=True)
+        
+        lang = "te"
+        output_filepath = r"C:\Audio\greeting.mp3"
+        greeting_text = "మీకు కావలసిన సమాచారం కోసం దయచేసి మాట్లాడండి"
+        
+        print("Playing greeting message...")
+        generate_mp3_gtts(greeting_text, lang, output_filepath)
+        
+        pygame.init()
+        pygame.mixer.init()
+        pygame.mixer.music.load(output_filepath)
+        pygame.mixer.music.play()
+        
+        # Wait for the greeting to finish playing
+        while pygame.mixer.music.get_busy():
+            pygame.time.Clock().tick(10)
+            
+        # Add a small delay after greeting
+        time.sleep(0.5)
+        
+        return True
+    except Exception as e:
+        print(f"Error playing greeting: {e}")
+        return False
+
 def send_to_llm():
+    """Handle voice input and LLM processing"""
     r = sr.Recognizer()
     with sr.Microphone() as source:
         print("Speak now...")
         try:
+            # Adjust for ambient noise
+            r.adjust_for_ambient_noise(source, duration=0.5)
+            
+            # Listen for audio input
             audio = r.listen(source, timeout=10)  # Timeout after 10 seconds
+            
+            # Convert speech to text
             text = r.recognize_google(audio, language="te-IN")  # Specify Telugu
             print("You said: " + text)
+            
+            # Skip processing if the text matches the greeting
+            if text.strip() == "మీకు కావలసిన సమాచారం కోసం దయచేసి మాట్లాడండి":
+                print("Detected greeting message, skipping processing...")
+                return None
+                
         except sr.UnknownValueError:
             print("Could not understand audio")
             return None
@@ -441,178 +484,80 @@ def send_to_llm():
         except sr.WaitTimeoutError:
             print("Listening timed out. No speech detected.")
             return None
+            
     genai.configure(api_key="AIzaSyAjwl7thjLDRZGKBazfq_b1BzWX-tN-0BU")
-
-    model = genai.GenerativeModel("gemini-1.5-flash")  # Or "gemini-pro"
-    audio_data = audio.get_wav_data()  # get wav data.
-    mime_type = "audio/wav"  # Speech_recognition returns wav.
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    
+    audio_data = audio.get_wav_data()
     contents = {
-            "mime_type": "audio/wav",  # Adjust mime type accordingly (e.g., audio/mp3)
-            "data": audio_data,
+        "mime_type": "audio/wav",
+        "data": audio_data,
     }
-    print("calling API")
+    
+    # Define the prompt for Gemini
     prompt = """
     Hey Gemini, I am sending an audio clip containing a real-time bus-related enquiry. The primary language of the clip is Telugu, but it may also include words in English and Hindi.
-This bot will be physically placed at the Vijayawada Bus Stand, so by default, the source city is Vijayawada, unless the user explicitly mentions another city.
-If the user mentions multiple cities (excluding Vijayawada), the bot should switch to the Multiple_City_Enquiry module to ensure proper handling.
+    This bot will be physically placed at the Vijayawada Bus Stand, so by default, the source city is Vijayawada, unless the user explicitly mentions another city.
+    If the user mentions multiple cities (excluding Vijayawada), the bot should switch to the Multiple_City_Enquiry module to ensure proper handling.
 
-Task
-Analyze the real-time enquiry and:
-Identify the intent (bus enquiry, fare enquiry, platform details, etc.).
-Extract the relevant parameters from the audio.
-Return the response in a structured JSON format.
+    Task:
+    Analyze the real-time enquiry and:
+    1. Identify the intent (bus enquiry, fare enquiry, platform details, etc.)
+    2. Extract the relevant parameters from the audio
+    3. Return the response in a structured JSON format
 
-Modules with Real-time Examples & Parameters
+    Expected JSON Output Format:
+    {
+        "Module Name": "Identified Module",
+        "Source_City": "Extracted Source City (Default: Vijayawada if not mentioned)",
+        "Destination_City": "Extracted Destination City",
+        "Bus_Type": "Extracted Bus Type (none if not mentioned)",
+        "Service_Number": "Extracted Service Number (none if not mentioned)",
+        "Time_Frame": "Extracted Time Frame (none if not mentioned)",
+        "Seat_Availability": "Yes/No (none if not asked)",
+        "Last_Departure_Time": "Time in HH:MM format (none if not mentioned)",
+        "Fare_Amount": "Amount (none if not mentioned)",
+        "Booking_Options": "Options (none if not mentioned)",
+        "Bus_Number": "Bus Number (none if not mentioned)",
+        "Weight": "Weight in kg (none if not mentioned)",
+        "Expected_Delay": "Delay info (none if not mentioned)",
+        "Intermediate_City": "City name (none if not mentioned)",
+        "Festival_Special_Occasion": "Occasion name (none if not mentioned)"
+    }
 
-1) Next Bus Enquiry (Real-time & Expanded)
-Module: Bus_Enquiry_Next_Bus
-Parameters:
-Source_City (Default: Vijayawada)
-Destination_City
-Bus_Type
-Service_Number (if mentioned)
-Time_Frame (if the user asks for a specific time)
-Seat_Availability (if asked)
-Example Queries:
-"Next Super Luxury bus to Hyderabad?"
-"When is the next Deluxe bus to Guntur?"
-"Is there an Express bus to Tirupati in the next hour?"
-"2509 service number bus Vijayawada nunchi vastundaa?"
-"Hyderabad nunchi Vijayawada ki next bus eppudu?" (Source is not default)
-"గుంటూరు వెళ్ళే వోల్వో బస్సు ఏది?"
-"Afternoon lo Nellore ki Deluxe bus vastundaa?"
-"Hyderabad lo airport nunchi direct RTC bus undha?"
-
-2) Last Bus Enquiry
-Module: Bus_Enquiry_Last_Bus
-Parameters:
-Source_City (Default: Vijayawada)
-Destination_City
-Bus_Type
-Service_Number
-Last_Departure_Time
-Example Queries:
-"padinti lopu kakani bus"
-"Delhi ki akhari bus"
-"What time was the last Amaravati bus to Rajahmundry?"
-"2509 service number last bus yappudu vellindhi?"
-"What bus is there before 5:00 for Tirupati"
-"Chennai ki chivari bus"
-"Last AC bus to Tirupati from Hyderabad?" (Source is not default)
-3) Real-time Fare Enquiry
-Module: Fare_Enquiry
-Parameters:
-Source_City (Default: Vijayawada)
-Destination_City
-Bus_Type
-Fare_Amount (if asked)
-Booking_Options (if asked)
-Example Queries:
-"How much is the ticket from Vijayawada to Guntur?"
-"What is the fare for AC bus from Vijayawada to Chennai?"
-"Hyderabad nunchi Vizag ki AC bus fare entha?" (Source is not default)
-4) Real-time Platform Enquiry
-Module: Platform_Enquiry
-Parameters:
-Source_City (Default: Vijayawada)
-City_Name (if user asks about another city's platform)
-Bus_Number
-Service_Number
-Example Queries:
-"Which platform does Bus No. 220 start from in Vijayawada?"
-"2509 service bus ki Hyderabad lo platform number entha?"
-"Vizag lo RTC bus stand lo Tirupati bus ekkada undi?" (Source is not default)
-
-5) Seat Availability & Booking
-Module: Seat_Availability_Enquiry
-Parameters:
-Source_City (Default: Vijayawada)
-Destination_City
-Bus_Type
-Seat_Status
-Example Queries:
-"Hyderabad ki AC Sleeper lo seats available unnaya?"
-"Tirupati ki sleeper bus lo konchem seats undhaa?"
-"Last row lo sleeper beds Hyderabad bus lo available undhaa?"
-
-6) Luggage & Goods Transport
-Module: Luggage_Enquiry
-Parameters:
-Source_City (Default: Vijayawada)
-Destination_City
-Weight
-Charges
-Example Queries:
-"Express bus lo 30 kg luggage allow chesthara?"
-"Bangalore ki parcel pampadam ki charges entha?"
-For output no need to give units just give values
-7) Bus Status Enquiry
-Module: Bus_Status_Enquiry
-Parameters:
-Source_City (Default: Vijayawada)
-Bus_Number
-Service_Number
-Expected_Delay
-Example Queries:
-"Has the Super Luxury bus from Vijayawada to Hyderabad been delayed?"
-"2509 service number bus delay avuthunda?"
-
-8) Multi-City Enquiry (if multiple cities are mentioned)
-Module: Multiple_City_Enquiry
-Parameters:
-Source_City
-Intermediate_City
-Destination_City
-Bus_Type
-Example Queries:
-"What is the bus availability from Hyderabad to Tirupati?"
-"Is there a bus from Chennai to Bangalore?"
-
-9) Special Service Enquiry
-Module: Special_Service_Enquiry
-Parameters:
-Source_City (Default: Vijayawada)
-Destination_City
-Festival/Special Occasion
-Example Queries:
-"Diwali ki extra special bus undhaa Hyderabad ki?"
-"Eid ki extra RTC bus services unnaya?"
-
-Expected JSON Output Format
-{
-  "Module Name": "Identified Module",
-  "Parameter 1": "Extracted Value 1",
-  "Parameter 2": "Extracted Value 2 (if applicable)",
-  "Source_City": "Extracted Source City (Default: Vijayawada if not mentioned)",
-  "Destination_City": "Extracted Destination City",
-  "Service_Number": "Extracted Service Number (if mentioned)",
-  "Seat_Availability": "Yes/No (if asked)",
-  "Time_Frame": "Extracted Time Frame (In HH:MM)"
-}
-If parameter is not mentioned mention the parameter and keep value as none
+    Available Modules:
+    1. Bus_Enquiry_Next_Bus - For next bus queries
+    2. Bus_Enquiry_Last_Bus - For last bus queries
+    3. Fare_Enquiry - For fare related queries
+    4. Platform_Enquiry - For platform number queries
+    5. Seat_Availability_Enquiry - For seat availability queries
+    6. Luggage_Enquiry - For luggage related queries
+    7. Bus_Status_Enquiry - For bus status/delay queries
+    8. Multiple_City_Enquiry - For queries involving multiple cities
+    9. Special_Service_Enquiry - For festival/special service queries
     """
-
+    
+    print("Calling Gemini API...")
     try:
         response = model.generate_content([prompt, contents], stream=False)
-
-    except Exception as e:
-        print(f"Gemini API error: {e}")
-        return None, None
-    try:
-            # 1. Access the text part of the response
-            response_text = response.candidates[0].content.parts[0].text
-
-            # 2. Extract the JSON string (remove ```json and ```)
-            json_string = response_text.replace("```json\n", "").replace("\n```", "")
-
-            # 3. Parse the JSON string into a Python dictionary
-            json_data = json.loads(json_string)  # Use json.loads()
-
-            print(json_data)  # Return the Python dictionary
+        response_text = response.candidates[0].content.parts[0].text
+        
+        # Extract JSON from the response text
+        start_idx = response_text.find('{')
+        end_idx = response_text.rfind('}') + 1
+        if start_idx >= 0 and end_idx > start_idx:
+            json_string = response_text[start_idx:end_idx]
+            json_data = json.loads(json_string)
+            print(json_data)
             return json_data
-    except (IndexError, json.JSONDecodeError) as e:
+        else:
+            print("No valid JSON found in response")
+            return None
+            
+    except Exception as e:
         print(f"Error processing Gemini response: {e}")
-        print("Raw Gemini Response:", response) # print the raw response for debugging.
+        print("Raw Gemini Response:", response)
+        return None
 
 # --- Main Execution ---
 if __name__ == "__main__":

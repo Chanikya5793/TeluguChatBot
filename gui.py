@@ -60,13 +60,24 @@ class VoiceBusEnquiryGUI:
                                  justify=tk.LEFT)
         examples_label.pack(pady=(0, 20))
         
+        # Voice control frame
+        voice_control_frame = ttk.Frame(voice_frame)
+        voice_control_frame.pack(pady=20)
+        
         # Voice button
-        self.voice_button = ttk.Button(voice_frame,
-                                     text="🎤 Click",
+        self.voice_button = ttk.Button(voice_control_frame,
+                                     text="🎤 Click to Start",
                                      style="Voice.TButton")
-        self.voice_button.pack(pady=20, ipadx=20, ipady=20)
+        self.voice_button.pack(side=tk.LEFT, padx=10)
         self.voice_button.bind('<ButtonPress-1>', self.start_recording)
         self.voice_button.bind('<ButtonRelease-1>', self.stop_recording)
+        
+        # Reset button
+        self.reset_button = ttk.Button(voice_control_frame,
+                                     text="🔄 Reset Conversation",
+                                     style="Voice.TButton",
+                                     command=self.reset_conversation)
+        self.reset_button.pack(side=tk.LEFT, padx=10)
         
         # Status and timer labels
         self.status_label = ttk.Label(voice_frame,
@@ -103,6 +114,9 @@ class VoiceBusEnquiryGUI:
         # Redirect stdout to capture database.py output
         sys.stdout = self
         
+        # Add conversation state
+        self.conversation_started = False
+        
     def write(self, text):
         """Redirect stdout to the text widget"""
         self.output_text.insert(tk.END, text)
@@ -114,6 +128,13 @@ class VoiceBusEnquiryGUI:
         
     def start_recording(self, event):
         """Start voice recording"""
+        if not self.conversation_started:
+            self.conversation_started = True
+            # Play greeting message and wait for it to finish
+            if not db.play_greeting():
+                messagebox.showerror("Error", "Failed to play greeting message")
+                return
+            
         self.is_recording = True
         self.voice_button.configure(text="🎙️ Recording... Release when done")
         self.status_label.configure(text="Listening to your query...")
@@ -238,6 +259,7 @@ class VoiceBusEnquiryGUI:
                 
                 self.status_label.configure(text="Ready to listen...")
                 
+                
             finally:
                 connection.close()
                 
@@ -245,6 +267,13 @@ class VoiceBusEnquiryGUI:
             self.status_label.configure(text="An error occurred. Please try again.")
             messagebox.showerror("Error", str(e))
             
+    def reset_conversation(self):
+        """Reset the conversation state"""
+        self.conversation_started = False
+        self.output_text.delete(1.0, tk.END)
+        self.status_label.configure(text="Ready to start new conversation...")
+        self.voice_button.configure(text="🎤 Click to Start")
+        
 def main():
     # Ensure the Audio directory exists
     os.makedirs(r"C:\Audio", exist_ok=True)
